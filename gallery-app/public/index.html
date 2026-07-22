@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Gallery — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="login-body">
+
+  <div class="film-noise"></div>
+
+  <main class="login-wrap">
+    <div class="login-card">
+      <div class="sprockets sprockets-top" aria-hidden="true"></div>
+
+      <div class="login-brand">
+        <span class="frame-tag">FRAME 001</span>
+        <h1>My Gallery</h1>
+        <p class="login-sub">Har photo, har video — ek hi jagah, safe.</p>
+      </div>
+
+      <form id="loginForm" class="login-form">
+        <label class="field">
+          <span>Naam</span>
+          <input type="text" id="name" name="name" placeholder="Apna naam likhein" autocomplete="name" required />
+        </label>
+
+        <label class="field">
+          <span>Phone number</span>
+          <input type="tel" id="phone" name="phone" placeholder="10-digit mobile number" autocomplete="tel" required />
+        </label>
+
+        <button type="submit" id="loginBtn" class="btn-primary">
+          <span id="loginBtnText">Gallery kholein</span>
+        </button>
+
+        <p id="errorMsg" class="error-msg" hidden></p>
+      </form>
+
+      <p class="login-footnote">Naya number hoga to account khud ban jayega — password ki zaroorat nahi.</p>
+
+      <div class="sprockets sprockets-bottom" aria-hidden="true"></div>
+    </div>
+  </main>
+
+  <script src="js/login.js"></script>
+</body>
+</html>

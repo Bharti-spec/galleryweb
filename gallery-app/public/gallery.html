@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="gallery-body">
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="frame-tag">MY GALLERY</span>
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="gallery">Gallery</button>
+        <button class="tab-btn" data-tab="favorites">Favorites</button>
+        <button class="tab-btn" data-tab="albums">Albums</button>
+        <button class="tab-btn" data-tab="trash">Trash</button>
+      </nav>
+    </div>
+    <div class="topbar-user">
+      <span id="storageMeter" class="storage-meter"></span>
+      <span id="userName" class="user-name"></span>
+      <button id="selectModeBtn" class="btn-ghost">Select</button>
+      <button id="logoutBtn" class="btn-ghost">Logout</button>
+    </div>
+  </header>
+
+  <main class="gallery-main">
+
+    <!-- ===== GALLERY VIEW (all photos, or inside a single album) ===== -->
+    <section id="galleryView" class="view">
+      <div id="albumHeader" class="album-header" hidden>
+        <button id="backToAlbums" class="btn-ghost">&larr; Albums</button>
+        <h2 id="albumHeaderName"></h2>
+        <button id="shareAlbumBtn" class="btn-ghost">Share album</button>
+      </div>
+
+      <div id="emptyState" class="empty-state" hidden>
+        <div class="empty-frame" aria-hidden="true"></div>
+        <h2>Abhi tak kuch upload nahi hua</h2>
+        <p>Apni pehli photo ya video daalein — yahi se shuru hota hai aapka gallery.</p>
+      </div>
+
+      <div id="galleryGroups"></div>
+    </section>
+
+    <!-- ===== ALBUMS VIEW ===== -->
+    <section id="albumsView" class="view" hidden>
+      <div class="albums-toolbar">
+        <button id="newAlbumBtn" class="btn-primary btn-inline">+ New Album</button>
+      </div>
+
+      <div id="albumsEmptyState" class="empty-state" hidden>
+        <div class="empty-frame" aria-hidden="true"></div>
+        <h2>Koi album nahi bana</h2>
+        <p>Photos ko organize karne ke liye ek album bana lein — jaise "Family" ya "Trip".</p>
+      </div>
+
+      <div id="albumsGrid" class="albums-grid"></div>
+    </section>
+
+    <!-- ===== TRASH VIEW ===== -->
+    <section id="trashView" class="view" hidden>
+      <p class="trash-note">Delete kiye hue items 30 din tak yahan rehte hain, uske baad khud hi permanently hat jaate hain.</p>
+
+      <div id="trashEmptyState" class="empty-state" hidden>
+        <div class="empty-frame" aria-hidden="true"></div>
+        <h2>Trash khaali hai</h2>
+        <p>Jo bhi delete karenge, wo yahan aakar dikhega.</p>
+      </div>
+
+      <div id="trashGrid" class="gallery-grid"></div>
+    </section>
+
+  </main>
+
+  <button id="uploadFab" class="upload-fab" aria-label="Upload photos or videos">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+  </button>
+  <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden />
+
+  <div id="uploadProgress" class="upload-progress" hidden>
+    <div class="upload-progress-bar"><div id="uploadProgressFill" class="upload-progress-fill"></div></div>
+    <span id="uploadProgressText">Uploading…</span>
+  </div>
+
+  <div id="downloadProgress" class="upload-progress" hidden>
+    <div class="upload-progress-bar"><div id="downloadProgressFill" class="upload-progress-fill"></div></div>
+    <span id="downloadProgressText">Downloading…</span>
+  </div>
+
+  <!-- Lightbox for viewing a single photo/video -->
+  <div id="lightbox" class="lightbox" hidden>
+    <div class="lightbox-actions">
+      <button id="lightboxFavorite" class="lightbox-btn lightbox-favorite">&#9733; Favorite</button>
+      <button id="lightboxShare" class="lightbox-btn lightbox-share">Share</button>
+      <button id="lightboxDownload" class="lightbox-btn lightbox-download">Download</button>
+      <button id="lightboxAlbum" class="lightbox-btn lightbox-album">Add to album</button>
+      <button id="lightboxRestore" class="lightbox-btn lightbox-restore" hidden>Restore</button>
+      <button id="lightboxDelete" class="lightbox-btn lightbox-delete">Delete</button>
+      <button id="lightboxClose" class="lightbox-btn lightbox-close" aria-label="Close">&times;</button>
+    </div>
+    <div id="lightboxContent" class="lightbox-content"></div>
+  </div>
+
+  <!-- Bottom bar shown during multi-select -->
+  <div id="selectionBar" class="selection-bar" hidden>
+    <span id="selectionCount">0 selected</span>
+    <div class="selection-actions">
+      <button id="selectAllBtn" class="btn-ghost">Select all</button>
+      <button id="bulkDownloadBtn" class="btn-ghost">Download</button>
+      <button id="bulkFavoriteBtn" class="btn-ghost">&#9733; Favorite</button>
+      <button id="bulkAlbumBtn" class="btn-ghost">Add to album</button>
+      <button id="bulkTrashBtn" class="btn-ghost btn-danger">Delete</button>
+      <button id="bulkRestoreBtn" class="btn-ghost" hidden>Restore</button>
+      <button id="bulkPermanentDeleteBtn" class="btn-ghost btn-danger" hidden>Delete forever</button>
+      <button id="cancelSelectBtn" class="btn-ghost">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Modal: create album / add-to-album picker -->
+  <div id="albumModal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <h3 id="albumModalTitle">New album</h3>
+
+      <div id="albumModalList" class="modal-album-list"></div>
+
+      <form id="newAlbumForm" class="modal-form">
+        <input type="text" id="newAlbumName" placeholder="Album ka naam (e.g. Family Trip)" required />
+        <button type="submit" class="btn-primary btn-inline">Create</button>
+      </form>
+
+      <button id="albumModalClose" class="btn-ghost modal-close-btn">Close</button>
+    </div>
+  </div>
+
+  <!-- Modal: shows the generated share link -->
+  <div id="shareModal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <h3>Share link</h3>
+      <div class="share-link-row">
+        <input type="text" id="shareLinkInput" readonly />
+        <button id="copyShareLinkBtn" class="btn-ghost">Copy</button>
+      </div>
+      <p class="share-hint">Jisko bhi ye link milega, wo bina login kiye dekh sakega.</p>
+      <button id="revokeShareBtn" class="btn-ghost btn-danger modal-close-btn">Stop sharing</button>
+      <button id="shareModalClose" class="btn-ghost modal-close-btn">Close</button>
+    </div>
+  </div>
+
+  <script src="js/gallery.js"></script>
+</body>
+</html>
