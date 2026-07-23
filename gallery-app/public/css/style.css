@@ -35,6 +35,10 @@ a { color: inherit; }
 
 ::selection { background: var(--accent-soft); }
 
+/* This MUST come after other rules so that the hidden attribute always wins,
+   even on elements (like modals) that also set their own display value. */
+[hidden] { display: none !important; }
+
 /* ---------- shared bits ---------- */
 
 .frame-tag {
