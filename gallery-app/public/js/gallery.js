@@ -370,6 +370,56 @@ async function loadAlbums() {
       cover.appendChild(placeholder);
     }
 
+    const optionsBtn = document.createElement("button");
+    optionsBtn.className = "album-options-btn";
+    optionsBtn.innerHTML = "&#8942;";
+    optionsBtn.setAttribute("aria-label", "Album options");
+
+    const optionsMenu = document.createElement("div");
+    optionsMenu.className = "album-options-menu";
+    optionsMenu.hidden = true;
+
+    const renameItem = document.createElement("button");
+    renameItem.textContent = "Rename";
+    renameItem.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      optionsMenu.hidden = true;
+      const newName = prompt("Album ka naya naam:", album.name);
+      if (!newName || !newName.trim() || newName.trim() === album.name) return;
+
+      await authJson(`/api/albums/${album._id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      loadAlbums();
+    });
+
+    const deleteItem = document.createElement("button");
+    deleteItem.textContent = "Delete album";
+    deleteItem.className = "danger";
+    deleteItem.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      optionsMenu.hidden = true;
+      if (!confirm(`"${album.name}" album delete kar dein? Photos/videos gallery mein wapas aa jayengi, kuch delete nahi hoga.`)) return;
+
+      await authFetch(`/api/albums/${album._id}`, { method: "DELETE" });
+      loadAlbums();
+    });
+
+    optionsMenu.appendChild(renameItem);
+    optionsMenu.appendChild(deleteItem);
+
+    optionsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      document.querySelectorAll(".album-options-menu").forEach((m) => {
+        if (m !== optionsMenu) m.hidden = true;
+      });
+      optionsMenu.hidden = !optionsMenu.hidden;
+    });
+
+    cover.appendChild(optionsBtn);
+    cover.appendChild(optionsMenu);
+
     const info = document.createElement("div");
     info.className = "album-info";
     info.innerHTML = `<h3>${escapeHtml(album.name)}</h3><span>${album.count} item${album.count === 1 ? "" : "s"}</span>`;
@@ -382,6 +432,11 @@ async function loadAlbums() {
     albumsGrid.appendChild(card);
   });
 }
+
+// Close any open album options menu when clicking elsewhere on the page
+document.addEventListener("click", () => {
+  document.querySelectorAll(".album-options-menu").forEach((m) => (m.hidden = true));
+});
 
 function openAlbum(albumId, albumName) {
   currentAlbumId = albumId;
@@ -799,46 +854,94 @@ fileInput.addEventListener("change", async () => {
   const files = Array.from(fileInput.files);
   if (files.length === 0) return;
 
-  const formData = new FormData();
-  files.forEach((f) => formData.append("files", f));
-  if (currentAlbumId) formData.append("albumId", currentAlbumId);
-
   uploadProgress.hidden = false;
   uploadProgressFill.style.width = "0%";
-  uploadProgressText.textContent = `Uploading ${files.length} file${files.length > 1 ? "s" : ""}…`;
 
-  try {
-    await new Promise((resolve, reject) => {
+  const totalFiles = files.length;
+  let completedFiles = 0;
+  const fileProgress = new Array(totalFiles).fill(0);
+  const fileSizes = files.map((f) => f.size || 1);
+  const totalSize = fileSizes.reduce((a, b) => a + b, 0);
+
+  function updateOverallProgress() {
+    let loadedTotal = 0;
+    for (let i = 0; i < totalFiles; i++) {
+      loadedTotal += fileProgress[i] * fileSizes[i];
+    }
+    const pct = totalSize > 0 ? Math.round((loadedTotal / totalSize) * 100) : 0;
+    uploadProgressFill.style.width = pct + "%";
+  }
+
+  uploadProgressText.textContent = `Uploading 0 of ${totalFiles}…`;
+
+  function uploadSingleFile(file, index) {
+    return new Promise((resolve) => {
+      const formData = new FormData();
+      formData.append("files", file);
+      if (currentAlbumId) formData.append("albumId", currentAlbumId);
+
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/media/upload");
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
-          uploadProgressFill.style.width = pct + "%";
+          fileProgress[index] = e.loaded / e.total;
+          updateOverallProgress();
         }
       });
 
       xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) resolve();
-        else reject(new Error("Upload failed"));
+        fileProgress[index] = 1;
+        completedFiles++;
+        uploadProgressText.textContent = `Uploading ${completedFiles} of ${totalFiles}…`;
+        updateOverallProgress();
+        resolve(xhr.status >= 200 && xhr.status < 300);
       };
-      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.onerror = () => {
+        completedFiles++;
+        uploadProgressText.textContent = `Uploading ${completedFiles} of ${totalFiles}…`;
+        resolve(false);
+      };
       xhr.send(formData);
     });
-
-    uploadProgressText.textContent = "Done!";
-    await loadGallery();
-    loadStorageMeter();
-  } catch (err) {
-    uploadProgressText.textContent = "Upload nahi ho paya. Dobara try karein.";
-  } finally {
-    setTimeout(() => {
-      uploadProgress.hidden = true;
-    }, 1200);
-    fileInput.value = "";
   }
+
+  // Upload a few files at a time in parallel (rather than one giant request)
+  // so each file gets its own connection — faster overall, and one slow or
+  // large file can no longer block or break the whole batch.
+  const CONCURRENCY = 3;
+  const results = new Array(totalFiles);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < files.length) {
+      const i = nextIndex++;
+      results[i] = await uploadSingleFile(files[i], i);
+    }
+  }
+
+  const workerCount = Math.min(CONCURRENCY, files.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  const failedCount = results.filter((ok) => ok === false).length;
+
+  if (failedCount === 0) {
+    uploadProgressText.textContent = "Done!";
+  } else {
+    uploadProgressText.textContent = `${totalFiles - failedCount} of ${totalFiles} uploaded, ${failedCount} fail ho gayi — dobara try karein.`;
+  }
+
+  await loadGallery();
+  loadStorageMeter();
+
+  setTimeout(
+    () => {
+      uploadProgress.hidden = true;
+    },
+    failedCount === 0 ? 1200 : 3500
+  );
+  fileInput.value = "";
 });
 
 // ---------- logout ----------
