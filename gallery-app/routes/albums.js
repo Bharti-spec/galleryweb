@@ -58,6 +58,29 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
+// PATCH /api/albums/:id - rename an album
+router.patch("/:id", requireAuth, async (req, res) => {
+  try {
+    const name = (req.body.name || "").trim();
+    if (!name) {
+      return res.status(400).json({ error: "Album ka naam dalein" });
+    }
+
+    const album = await Album.findOne({ _id: req.params.id, user: req.userId });
+    if (!album) {
+      return res.status(404).json({ error: "Album not found" });
+    }
+
+    album.name = name;
+    await album.save();
+
+    res.json({ album });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Album rename nahi ho paya" });
+  }
+});
+
 // POST /api/albums/:id/share - generate (or return existing) a public share link for the album
 router.post("/:id/share", requireAuth, async (req, res) => {
   try {
