@@ -14,7 +14,6 @@ const albumSchema = new mongoose.Schema({
   },
   shareToken: {
     type: String,
-    default: null,
     unique: true,
     sparse: true,
   },

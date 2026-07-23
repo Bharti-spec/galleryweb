@@ -35,7 +35,6 @@ const mediaSchema = new mongoose.Schema({
   },
   shareToken: {
     type: String,
-    default: null,
     unique: true,
     sparse: true,
   },
