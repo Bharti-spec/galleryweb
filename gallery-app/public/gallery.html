@@ -7,6 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#14110f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="My Gallery" />
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body class="gallery-body">
@@ -24,6 +31,7 @@
     <div class="topbar-user">
       <span id="storageMeter" class="storage-meter"></span>
       <span id="userName" class="user-name"></span>
+      <button id="exportBtn" class="btn-ghost">Backup</button>
       <button id="selectModeBtn" class="btn-ghost">Select</button>
       <button id="logoutBtn" class="btn-ghost">Logout</button>
     </div>
@@ -37,6 +45,7 @@
         <button id="backToAlbums" class="btn-ghost">&larr; Albums</button>
         <h2 id="albumHeaderName"></h2>
         <button id="shareAlbumBtn" class="btn-ghost">Share album</button>
+        <button id="exportAlbumBtn" class="btn-ghost">Export album</button>
       </div>
 
       <div id="emptyState" class="empty-state" hidden>
@@ -75,6 +84,8 @@
 
       <div id="trashGrid" class="gallery-grid"></div>
     </section>
+
+    <p id="loadMoreIndicator" class="load-more-indicator" hidden>Aur load ho raha hai…</p>
 
   </main>
 

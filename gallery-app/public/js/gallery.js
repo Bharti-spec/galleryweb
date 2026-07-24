@@ -37,6 +37,7 @@ const uploadProgressFill = document.getElementById("uploadProgressFill");
 const uploadProgressText = document.getElementById("uploadProgressText");
 
 const storageMeter = document.getElementById("storageMeter");
+const loadMoreIndicator = document.getElementById("loadMoreIndicator");
 
 const lightbox = document.getElementById("lightbox");
 const lightboxContent = document.getElementById("lightboxContent");
@@ -87,6 +88,14 @@ let selectedIds = new Set();
 let currentItem = null;
 let assignTargetIds = null; // ids being assigned to an album via the modal
 let shareContext = null; // { kind: 'media'|'album', id }
+
+const PAGE_SIZE = 60;
+let currentPage = 1;
+let hasMoreMedia = true;
+let isLoadingMore = false;
+let trashPage = 1;
+let hasMoreTrash = true;
+let isLoadingMoreTrash = false;
 
 // ---------- helpers ----------
 
@@ -215,17 +224,39 @@ backToAlbums.addEventListener("click", () => switchTab("albums"));
 // ---------- gallery (main + album detail) ----------
 
 async function loadGallery() {
-  const url = currentAlbumId ? `/api/media?albumId=${currentAlbumId}` : "/api/media";
-  const res = await authFetch(url);
-  const data = await res.json();
-  allMedia = data.media || [];
-  renderGalleryGroups();
+  currentPage = 1;
+  hasMoreMedia = true;
+  allMedia = [];
+  await loadMoreGalleryItems();
 }
 
 async function loadFavorites() {
-  const res = await authFetch("/api/media?favorite=true");
+  currentPage = 1;
+  hasMoreMedia = true;
+  allMedia = [];
+  await loadMoreGalleryItems();
+}
+
+async function loadMoreGalleryItems() {
+  if (!hasMoreMedia || isLoadingMore) return;
+  isLoadingMore = true;
+  loadMoreIndicator.hidden = false;
+
+  const params = new URLSearchParams();
+  if (currentAlbumId) params.set("albumId", currentAlbumId);
+  if (currentTab === "favorites") params.set("favorite", "true");
+  params.set("page", currentPage);
+  params.set("limit", PAGE_SIZE);
+
+  const res = await authFetch(`/api/media?${params.toString()}`);
   const data = await res.json();
-  allMedia = data.media || [];
+
+  allMedia = allMedia.concat(data.media || []);
+  hasMoreMedia = !!data.hasMore;
+  currentPage++;
+  isLoadingMore = false;
+  loadMoreIndicator.hidden = true;
+
   renderGalleryGroups();
 }
 
@@ -466,9 +497,30 @@ shareAlbumBtn.addEventListener("click", async () => {
 // ---------- trash ----------
 
 async function loadTrash() {
-  const res = await authFetch("/api/media/trash");
+  trashPage = 1;
+  hasMoreTrash = true;
+  allMedia = [];
+  await loadMoreTrashItems();
+}
+
+async function loadMoreTrashItems() {
+  if (!hasMoreTrash || isLoadingMoreTrash) return;
+  isLoadingMoreTrash = true;
+  loadMoreIndicator.hidden = false;
+
+  const params = new URLSearchParams();
+  params.set("page", trashPage);
+  params.set("limit", PAGE_SIZE);
+
+  const res = await authFetch(`/api/media/trash?${params.toString()}`);
   const data = await res.json();
-  allMedia = data.media || [];
+
+  allMedia = allMedia.concat(data.media || []);
+  hasMoreTrash = !!data.hasMore;
+  trashPage++;
+  isLoadingMoreTrash = false;
+  loadMoreIndicator.hidden = true;
+
   renderTrashGroups();
 }
 
@@ -983,6 +1035,64 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
   localStorage.removeItem("gallery_user");
   window.location.href = "index.html";
 });
+
+// ---------- infinite scroll ----------
+
+window.addEventListener("scroll", () => {
+  const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 600;
+  if (!nearBottom) return;
+
+  if ((currentTab === "gallery" || currentTab === "favorites") && hasMoreMedia && !isLoadingMore) {
+    loadMoreGalleryItems();
+  } else if (currentTab === "trash" && hasMoreTrash && !isLoadingMoreTrash) {
+    loadMoreTrashItems();
+  }
+});
+
+// ---------- backup / export ----------
+
+const exportBtn = document.getElementById("exportBtn");
+const exportAlbumBtn = document.getElementById("exportAlbumBtn");
+
+async function exportGallery(albumId) {
+  const btn = albumId ? exportAlbumBtn : exportBtn;
+  const originalText = btn.textContent;
+  btn.textContent = "Zip taiyar ho raha hai…";
+  btn.disabled = true;
+
+  try {
+    const url = albumId ? `/api/media/export?albumId=${albumId}` : "/api/media/export";
+    const res = await authFetch(url);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Backup nahi ban paya, dobara try karein.");
+      return;
+    }
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = "my-gallery-backup.zip";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    alert("Backup nahi ban paya, dobara try karein.");
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+if (exportBtn) {
+  exportBtn.addEventListener("click", () => exportGallery(null));
+}
+if (exportAlbumBtn) {
+  exportAlbumBtn.addEventListener("click", () => exportGallery(currentAlbumId));
+}
 
 // ---------- init ----------
 

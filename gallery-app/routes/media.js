@@ -1,6 +1,8 @@
 const express = require("express");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
+const archiver = require("archiver");
+const { Readable } = require("stream");
 const Media = require("../models/Media");
 const cloudinary = require("../config/cloudinary");
 const requireAuth = require("../middleware/auth");
@@ -33,6 +35,7 @@ async function purgeExpiredTrash(userId) {
 }
 
 // GET /api/media - active (non-trashed) media, optionally filtered by album
+// Supports pagination via ?page=1&limit=60 so large galleries load in chunks.
 router.get("/", requireAuth, async (req, res) => {
   try {
     await purgeExpiredTrash(req.userId);
@@ -45,25 +48,40 @@ router.get("/", requireAuth, async (req, res) => {
       filter.favorite = true;
     }
 
-    const media = await Media.find(filter).sort({ createdAt: -1 });
-    res.json({ media });
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 60, 1), 200);
+    const skip = (page - 1) * limit;
+
+    const media = await Media.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const hasMore = media.length === limit;
+
+    res.json({ media, hasMore, page });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Could not load your gallery" });
   }
 });
 
-// GET /api/media/trash - items currently in trash
+// GET /api/media/trash - items currently in trash (also paginated)
 router.get("/trash", requireAuth, async (req, res) => {
   try {
     await purgeExpiredTrash(req.userId);
 
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 60, 1), 200);
+    const skip = (page - 1) * limit;
+
     const media = await Media.find({
       user: req.userId,
       deletedAt: { $ne: null },
-    }).sort({ deletedAt: -1 });
+    })
+      .sort({ deletedAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.json({ media, retentionDays: TRASH_RETENTION_DAYS });
+    const hasMore = media.length === limit;
+
+    res.json({ media, hasMore, page, retentionDays: TRASH_RETENTION_DAYS });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Could not load trash" });
@@ -91,6 +109,67 @@ router.get("/storage", requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Could not load storage info" });
+  }
+});
+
+// GET /api/media/export - download everything (or one album) as a single zip file.
+// Streams straight through to the response so the whole zip never has to sit
+// in server memory at once.
+router.get("/export", requireAuth, async (req, res) => {
+  try {
+    const filter = { user: req.userId, deletedAt: null };
+    if (req.query.albumId) {
+      filter.album = req.query.albumId;
+    }
+
+    const media = await Media.find(filter).sort({ createdAt: -1 });
+
+    if (media.length === 0) {
+      return res.status(404).json({ error: "Export karne ke liye gallery mein kuch nahi hai" });
+    }
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", 'attachment; filename="my-gallery-backup.zip"');
+
+    const archive = archiver("zip", { zlib: { level: 5 } });
+    archive.on("error", (err) => {
+      console.error("Archive error:", err.message);
+      if (!res.headersSent) res.status(500);
+      res.end();
+    });
+    archive.pipe(res);
+
+    const usedNames = new Set();
+
+    for (const item of media) {
+      try {
+        const response = await fetch(item.url);
+        if (!response.ok || !response.body) continue;
+
+        const nodeStream = Readable.fromWeb(response.body);
+
+        const baseName = item.originalName || `${item._id}.${item.type === "video" ? "mp4" : "jpg"}`;
+        let finalName = baseName;
+        let counter = 1;
+        while (usedNames.has(finalName)) {
+          const dot = baseName.lastIndexOf(".");
+          finalName = dot > -1 ? `${baseName.slice(0, dot)} (${counter})${baseName.slice(dot)}` : `${baseName} (${counter})`;
+          counter++;
+        }
+        usedNames.add(finalName);
+
+        archive.append(nodeStream, { name: finalName });
+      } catch (err) {
+        console.error("Skipping file in export:", item._id, err.message);
+      }
+    }
+
+    await archive.finalize();
+  } catch (err) {
+    console.error(err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Backup nahi ban paya" });
+    }
   }
 });
 router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) => {
