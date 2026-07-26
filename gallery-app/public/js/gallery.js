@@ -284,6 +284,15 @@ function renderGalleryGroups() {
   });
 }
 
+function getVideoThumbnailUrl(url) {
+  // Cloudinary can generate a still-frame JPG straight from a video asset —
+  // just swap the file extension. This is far lighter than loading the full
+  // video, and avoids the browser hitting its per-page connection limit when
+  // many videos try to load in the grid at once (which was silently
+  // "blocking" some videos from ever rendering).
+  return url.replace(/\.\w+(\?.*)?$/, ".jpg$1");
+}
+
 function buildCell(item, context) {
   const cell = document.createElement("div");
   cell.className = "grid-item";
@@ -292,11 +301,10 @@ function buildCell(item, context) {
   cell.dataset.id = item._id;
 
   if (item.type === "video") {
-    const video = document.createElement("video");
-    video.src = item.url;
-    video.muted = true;
-    video.playsInline = true;
-    cell.appendChild(video);
+    const img = document.createElement("img");
+    img.src = getVideoThumbnailUrl(item.url);
+    img.loading = "lazy";
+    cell.appendChild(img);
 
     const badge = document.createElement("div");
     badge.className = "video-badge";
@@ -384,16 +392,9 @@ async function loadAlbums() {
     const cover = document.createElement("div");
     cover.className = "album-cover";
     if (album.coverUrl) {
-      if (album.coverType === "video") {
-        const video = document.createElement("video");
-        video.src = album.coverUrl;
-        video.muted = true;
-        cover.appendChild(video);
-      } else {
-        const img = document.createElement("img");
-        img.src = album.coverUrl;
-        cover.appendChild(img);
-      }
+      const img = document.createElement("img");
+      img.src = album.coverType === "video" ? getVideoThumbnailUrl(album.coverUrl) : album.coverUrl;
+      cover.appendChild(img);
     } else {
       const placeholder = document.createElement("span");
       placeholder.className = "album-cover-placeholder";
@@ -592,17 +593,23 @@ selectAllBtn.addEventListener("click", () => {
 
 // ---------- download ----------
 
-async function downloadFile(item) {
-  const res = await fetch(item.url);
-  const blob = await res.blob();
-  const blobUrl = URL.createObjectURL(blob);
+function getDownloadUrl(item) {
+  // Cloudinary's fl_attachment flag makes the CDN itself send the file with
+  // a Content-Disposition: attachment header, so the browser downloads it
+  // natively and streams it straight to disk. Previously we fetched the
+  // whole file into JS memory first (fetch + blob) — for large videos on a
+  // flaky connection, that could produce an incomplete/corrupt file (missing
+  // audio, playback errors). This avoids that entirely.
+  return item.url.replace("/upload/", "/upload/fl_attachment/");
+}
+
+function downloadFile(item) {
   const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = item.originalName || `gallery-${item._id}`;
+  a.href = getDownloadUrl(item);
+  if (item.originalName) a.download = item.originalName;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(blobUrl);
 }
 
 bulkDownloadBtn.addEventListener("click", async () => {
@@ -611,20 +618,21 @@ bulkDownloadBtn.addEventListener("click", async () => {
 
   downloadProgress.hidden = false;
   downloadProgressFill.style.width = "0%";
+  downloadProgressText.textContent = `Starting ${items.length} download${items.length > 1 ? "s" : ""}…`;
 
+  // Each click hands the file off to the browser's own download manager,
+  // which then downloads it in the background — so we just need to trigger
+  // them a bit apart (rather than all at once) so the browser doesn't drop
+  // any of the clicks.
   for (let i = 0; i < items.length; i++) {
-    downloadProgressText.textContent = `Downloading ${i + 1} of ${items.length}…`;
-    try {
-      await downloadFile(items[i]);
-    } catch (err) {
-      console.error("Download failed for", items[i]._id, err);
-    }
+    downloadFile(items[i]);
     downloadProgressFill.style.width = `${Math.round(((i + 1) / items.length) * 100)}%`;
-    await new Promise((r) => setTimeout(r, 400));
+    downloadProgressText.textContent = `Started ${i + 1} of ${items.length}…`;
+    await new Promise((r) => setTimeout(r, 500));
   }
 
-  downloadProgressText.textContent = "Done!";
-  setTimeout(() => (downloadProgress.hidden = true), 1200);
+  downloadProgressText.textContent = "Check your browser's downloads for progress.";
+  setTimeout(() => (downloadProgress.hidden = true), 2500);
 });
 
 // ---------- favorite (bulk) ----------
@@ -963,7 +971,7 @@ async function uploadFiles(files) {
       xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
       xhr.onerror = () => resolve(false);
       xhr.ontimeout = () => resolve(false);
-      xhr.timeout = 120000; // give slow mobile uploads (esp. videos) room to finish
+      xhr.timeout = 300000; // 5 minutes — gives large videos on slow connections real room to finish
       xhr.send(formData);
     });
   }

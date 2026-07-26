@@ -10,17 +10,16 @@ const lightboxDownload = document.getElementById("lightboxDownload");
 
 let currentDownloadItem = null;
 
-async function downloadFile(item) {
-  const res = await fetch(item.url);
-  const blob = await res.blob();
-  const blobUrl = URL.createObjectURL(blob);
+function downloadFile(item) {
+  // Same fix as the main app: let Cloudinary serve the file as a native
+  // browser download instead of loading it into JS memory first, which was
+  // corrupting large videos.
   const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = item.originalName || "gallery-file";
+  a.href = item.url.replace("/upload/", "/upload/fl_attachment/");
+  if (item.originalName) a.download = item.originalName;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(blobUrl);
 }
 
 function openLightbox(item) {
@@ -105,11 +104,10 @@ function renderAlbum(albumName, mediaList) {
     cell.className = "grid-item";
 
     if (item.type === "video") {
-      const video = document.createElement("video");
-      video.src = item.url;
-      video.muted = true;
-      video.playsInline = true;
-      cell.appendChild(video);
+      const img = document.createElement("img");
+      img.src = item.url.replace(/\.\w+(\?.*)?$/, ".jpg$1");
+      img.loading = "lazy";
+      cell.appendChild(img);
 
       const badge = document.createElement("div");
       badge.className = "video-badge";
