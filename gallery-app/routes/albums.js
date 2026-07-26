@@ -6,6 +6,10 @@ const requireAuth = require("../middleware/auth");
 
 const router = express.Router();
 
+function logError(err) {
+  console.error(err && err.stack ? err.stack : err);
+}
+
 // GET /api/albums - list user's albums with item count + a cover thumbnail
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -37,7 +41,7 @@ router.get("/", requireAuth, async (req, res) => {
 
     res.json({ albums: withCovers });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not load albums" });
   }
 });
@@ -53,7 +57,7 @@ router.post("/", requireAuth, async (req, res) => {
     const album = await Album.create({ user: req.userId, name });
     res.status(201).json({ album });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Album nahi ban paya" });
   }
 });
@@ -76,7 +80,7 @@ router.patch("/:id", requireAuth, async (req, res) => {
 
     res.json({ album });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Album rename nahi ho paya" });
   }
 });
@@ -96,7 +100,7 @@ router.post("/:id/share", requireAuth, async (req, res) => {
 
     res.json({ shareToken: album.shareToken });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not create share link" });
   }
 });
@@ -114,7 +118,7 @@ router.delete("/:id/share", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not revoke share link" });
   }
 });
@@ -135,7 +139,7 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Album delete nahi ho paya" });
   }
 });

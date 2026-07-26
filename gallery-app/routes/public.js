@@ -4,6 +4,10 @@ const Album = require("../models/Album");
 
 const router = express.Router();
 
+function logError(err) {
+  console.error(err && err.stack ? err.stack : err);
+}
+
 // GET /api/public/media/:token - view a single shared photo/video, no login needed
 router.get("/media/:token", async (req, res) => {
   try {
@@ -25,7 +29,7 @@ router.get("/media/:token", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Kuch gadbad ho gayi" });
   }
 });
@@ -55,7 +59,7 @@ router.get("/album/:token", async (req, res) => {
       })),
     });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Kuch gadbad ho gayi" });
   }
 });

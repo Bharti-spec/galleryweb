@@ -10,6 +10,13 @@ const upload = require("../middleware/upload");
 
 const router = express.Router();
 
+// Logs the fullest useful detail for an error (stack trace when available)
+// instead of just "[object Object]", which Render's log viewer otherwise
+// shows for plain console.error(err) calls.
+function logError(err) {
+  console.error(err && err.stack ? err.stack : err);
+}
+
 const TRASH_RETENTION_DAYS = 30;
 
 // Permanently removes anything that has been sitting in trash longer than
@@ -57,7 +64,7 @@ router.get("/", requireAuth, async (req, res) => {
 
     res.json({ media, hasMore, page });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not load your gallery" });
   }
 });
@@ -83,7 +90,7 @@ router.get("/trash", requireAuth, async (req, res) => {
 
     res.json({ media, hasMore, page, retentionDays: TRASH_RETENTION_DAYS });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not load trash" });
   }
 });
@@ -107,7 +114,7 @@ router.get("/storage", requireAuth, async (req, res) => {
 
     res.json({ totalBytes, count });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not load storage info" });
   }
 });
@@ -166,7 +173,7 @@ router.get("/export", requireAuth, async (req, res) => {
 
     await archive.finalize();
   } catch (err) {
-    console.error(err);
+    logError(err);
     if (!res.headersSent) {
       res.status(500).json({ error: "Backup nahi ban paya" });
     }
@@ -196,7 +203,7 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
 
     res.status(201).json({ media: saved });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Upload failed, please try again" });
   }
 });
@@ -216,7 +223,7 @@ router.patch("/bulk/album", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not update album" });
   }
 });
@@ -236,7 +243,7 @@ router.patch("/bulk/favorite", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not update favorites" });
   }
 });
@@ -256,7 +263,7 @@ router.post("/bulk/trash", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not move items to trash" });
   }
 });
@@ -276,7 +283,7 @@ router.post("/bulk/restore", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not restore items" });
   }
 });
@@ -304,7 +311,7 @@ router.delete("/bulk/permanent", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not delete items" });
   }
 });
@@ -322,7 +329,7 @@ router.patch("/:id/favorite", requireAuth, async (req, res) => {
 
     res.json({ favorite: item.favorite });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not update favorite" });
   }
 });
@@ -342,7 +349,7 @@ router.post("/:id/share", requireAuth, async (req, res) => {
 
     res.json({ shareToken: item.shareToken });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not create share link" });
   }
 });
@@ -360,7 +367,7 @@ router.delete("/:id/share", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not revoke share link" });
   }
 });
@@ -378,7 +385,7 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not delete this file" });
   }
 });
@@ -396,7 +403,7 @@ router.post("/:id/restore", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not restore this file" });
   }
 });
@@ -416,7 +423,7 @@ router.delete("/:id/permanent", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Could not delete this file" });
   }
 });

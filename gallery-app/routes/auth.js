@@ -4,6 +4,10 @@ const User = require("../models/User");
 
 const router = express.Router();
 
+function logError(err) {
+  console.error(err && err.stack ? err.stack : err);
+}
+
 // POST /api/auth/login
 // If phone already exists -> log that person in
 // If phone is new -> create a new account with the given name
@@ -37,7 +41,7 @@ router.post("/login", async (req, res) => {
       user: { id: user._id, name: user.name, phone: user.phone },
     });
   } catch (err) {
-    console.error(err);
+    logError(err);
     res.status(500).json({ error: "Something went wrong, please try again" });
   }
 });
