@@ -9,7 +9,12 @@ const storage = new CloudinaryStorage({
     return {
       folder: "my-gallery",
       resource_type: isVideo ? "video" : "image",
-      // keep original quality for images, cloudinary handles video streaming automatically
+      // The Cloudinary SDK's own upload request has a default internal
+      // timeout of just 60 seconds — on a slower connection (like Render's
+      // free tier), a video upload can easily take longer than that and get
+      // silently aborted, even though our own server/frontend timeouts are
+      // set much higher. Raising it here fixes that at the actual source.
+      timeout: 300000, // 5 minutes
     };
   },
 });
