@@ -1002,7 +1002,11 @@ async function uploadFiles(files) {
   // Only 2 files upload at a time — free hosting has limited memory/CPU,
   // and going easier on it makes each individual upload more likely to
   // succeed, especially for videos.
-  const CONCURRENCY = 2;
+  // Render's free tier only gives the server a single CPU core (confirmed by
+  // its own "Setting WEB_CONCURRENCY=1" log line) — uploading more than one
+  // file at a time, especially videos, can overload it and cause one of them
+  // to fail. One at a time is slower but far more reliable here.
+  const CONCURRENCY = 1;
   const results = new Array(totalFiles);
   let nextIndex = 0;
 
