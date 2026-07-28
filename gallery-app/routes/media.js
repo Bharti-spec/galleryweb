@@ -1,4 +1,5 @@
 const express = require("express");
+const fs = require("fs");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
 const archiver = require("archiver");
@@ -179,7 +180,22 @@ router.get("/export", requireAuth, async (req, res) => {
     }
   }
 });
+// cloudinary.uploader.upload_large() returns the underlying write stream
+// rather than a real promise, even when awaited directly — so without
+// wrapping it like this, our code would race ahead with an incomplete
+// upload every time instead of actually waiting for it to finish.
+function uploadLargeAsync(filePath, options) {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_large(filePath, options, (error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+  });
+}
+
 router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) => {
+  const cleanupTasks = [];
+
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "No files were received" });
@@ -188,23 +204,48 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
     const albumId = req.body.albumId || null;
 
     const saved = await Promise.all(
-      req.files.map((file) =>
-        Media.create({
+      req.files.map(async (file) => {
+        cleanupTasks.push(file.path);
+        const isVideo = file.mimetype.startsWith("video/");
+
+        const options = {
+          folder: "my-gallery",
+          resource_type: isVideo ? "video" : "image",
+          timeout: 300000,
+        };
+
+        // Videos go through Cloudinary's chunked upload — it splits the file
+        // into pieces and uploads them one at a time, which survives a flaky
+        // or slow connection far better than sending the whole file as one
+        // long request (which was failing with 502s on Render's free tier).
+        const result = isVideo
+          ? await uploadLargeAsync(file.path, {
+              ...options,
+              chunk_size: 6 * 1024 * 1024, // 6MB per chunk
+            })
+          : await cloudinary.uploader.upload(file.path, options);
+
+        return Media.create({
           user: req.userId,
           album: albumId,
-          url: file.path,
-          publicId: file.filename,
-          type: file.mimetype.startsWith("video/") ? "video" : "image",
+          url: result.secure_url,
+          publicId: result.public_id,
+          type: isVideo ? "video" : "image",
           originalName: file.originalname,
-          bytes: file.size,
-        })
-      )
+          bytes: result.bytes,
+        });
+      })
     );
 
     res.status(201).json({ media: saved });
   } catch (err) {
     logError(err);
     res.status(500).json({ error: "Upload failed, please try again" });
+  } finally {
+    // Always clean up the temp files, whether the upload succeeded or not.
+    cleanupTasks.forEach((filePath) => {
+      fs.unlink(filePath, () => {});
+    });
   }
 });
 
