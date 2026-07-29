@@ -18,6 +18,19 @@ function logError(err) {
   console.error(err && err.stack ? err.stack : err);
 }
 
+// Turns any error value (including plain objects like Cloudinary's own
+// timeout/network errors, which aren't real Error instances) into a
+// readable string instead of "[object Object]".
+function describeError(err) {
+  if (!err) return "Unknown error";
+  if (err instanceof Error) return err.stack || err.message;
+  try {
+    return JSON.stringify(err, Object.getOwnPropertyNames(err));
+  } catch {
+    return String(err);
+  }
+}
+
 const TRASH_RETENTION_DAYS = 30;
 
 // Permanently removes anything that has been sitting in trash longer than
@@ -203,7 +216,7 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
 
     const albumId = req.body.albumId || null;
 
-    const saved = await Promise.all(
+    const outcomes = await Promise.allSettled(
       req.files.map(async (file) => {
         cleanupTasks.push(file.path);
         const isVideo = file.mimetype.startsWith("video/");
@@ -214,16 +227,32 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
           timeout: 300000,
         };
 
-        // Videos go through Cloudinary's chunked upload — it splits the file
-        // into pieces and uploads them one at a time, which survives a flaky
-        // or slow connection far better than sending the whole file as one
-        // long request (which was failing with 502s on Render's free tier).
-        const result = isVideo
-          ? await uploadLargeAsync(file.path, {
-              ...options,
-              chunk_size: 6 * 1024 * 1024, // 6MB per chunk
-            })
-          : await cloudinary.uploader.upload(file.path, options);
+        console.log(
+          `Uploading "${file.originalname}" (${isVideo ? "video" : "image"}, ${(file.size / (1024 * 1024)).toFixed(1)}MB)…`
+        );
+
+        let result;
+        try {
+          // Videos go through Cloudinary's chunked upload — it splits the
+          // file into pieces and uploads them one at a time, which survives
+          // a flaky or slow connection far better than sending the whole
+          // file as one long request (which was failing with 502s on
+          // Render's free tier).
+          result = isVideo
+            ? await uploadLargeAsync(file.path, {
+                ...options,
+                chunk_size: 6 * 1024 * 1024, // 6MB per chunk
+              })
+            : await cloudinary.uploader.upload(file.path, options);
+        } catch (uploadErr) {
+          console.error(
+            `Cloudinary upload FAILED for "${file.originalname}" (${(file.size / (1024 * 1024)).toFixed(1)}MB, ${file.mimetype}):`,
+            describeError(uploadErr)
+          );
+          throw uploadErr;
+        }
+
+        console.log(`Upload succeeded for "${file.originalname}" -> ${result.public_id}`);
 
         return Media.create({
           user: req.userId,
@@ -237,7 +266,14 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
       })
     );
 
-    res.status(201).json({ media: saved });
+    const saved = outcomes.filter((o) => o.status === "fulfilled").map((o) => o.value);
+    const failedCount = outcomes.length - saved.length;
+
+    if (saved.length === 0) {
+      return res.status(500).json({ error: "Upload failed, please try again" });
+    }
+
+    res.status(failedCount > 0 ? 207 : 201).json({ media: saved, failedCount });
   } catch (err) {
     logError(err);
     res.status(500).json({ error: "Upload failed, please try again" });
