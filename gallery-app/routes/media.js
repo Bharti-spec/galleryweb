@@ -216,10 +216,22 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
 
     const albumId = req.body.albumId || null;
 
+    // Cloudinary's free plan enforces these limits itself regardless of
+    // upload method — checking here first avoids a wasted API round-trip
+    // for a file we already know will be rejected.
+    const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+    const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
     const outcomes = await Promise.allSettled(
       req.files.map(async (file) => {
         cleanupTasks.push(file.path);
         const isVideo = file.mimetype.startsWith("video/");
+        const limit = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+
+        if (file.size > limit) {
+          const limitMb = limit / (1024 * 1024);
+          throw new Error(`"${file.originalname}" ${limitMb}MB se badi hai — allowed limit ${limitMb}MB hai`);
+        }
 
         const options = {
           folder: "my-gallery",
