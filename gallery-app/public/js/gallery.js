@@ -937,30 +937,61 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
 async function uploadFiles(files) {
   if (!files || files.length === 0) return;
 
-  const tooLarge = [];
-  const validFiles = [];
-
-  files.forEach((f) => {
-    const isVideo = f.type.startsWith("video/");
-    const limit = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
-    if (f.size > limit) tooLarge.push(f);
-    else validFiles.push(f);
-  });
-
-  if (tooLarge.length > 0) {
-    const list = tooLarge.map((f) => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)}MB)`).join("\n");
-    alert(
-      `Ye file(s) bahut badi hain, upload nahi ho payengi:\n\n${list}\n\n` +
-        `Free plan ki limit: Videos 100MB tak, Photos 10MB tak. Video ko chhota/compress karke dobara try karein.`
-    );
-  }
-
-  if (validFiles.length === 0) return;
-  files = validFiles;
-
   uploadProgress.hidden = false;
   uploadProgressFill.style.width = "0%";
   retryFailedBtn.hidden = true;
+
+  const finalFiles = [];
+  const stillTooLarge = [];
+
+  for (const f of files) {
+    const isVideo = f.type.startsWith("video/");
+    const limit = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+
+    if (f.size <= limit) {
+      finalFiles.push(f);
+      continue;
+    }
+
+    if (!isVideo) {
+      // We don't compress oversized photos — just flag them.
+      stillTooLarge.push(f);
+      continue;
+    }
+
+    // Oversized video — try compressing it right here in the browser before
+    // giving up on it.
+    uploadProgressText.textContent = `"${f.name}" ko compress kiya ja raha hai…`;
+    try {
+      const { compressVideoToLimit } = await import("/js/video-compress.js");
+      const compressed = await compressVideoToLimit(f, limit, (status) => {
+        uploadProgressText.textContent = `"${f.name}": ${status}`;
+      });
+      if (compressed.size <= limit) {
+        finalFiles.push(compressed);
+      } else {
+        stillTooLarge.push(f);
+      }
+    } catch (err) {
+      console.error("Compression failed for", f.name, err);
+      stillTooLarge.push(f);
+    }
+  }
+
+  if (stillTooLarge.length > 0) {
+    const list = stillTooLarge.map((f) => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)}MB)`).join("\n");
+    alert(
+      `Ye file(s) upload nahi ho payengi:\n\n${list}\n\n` +
+        `Free plan ki limit: Videos 100MB tak, Photos 10MB tak. (Video compress karne ki koshish ki gayi thi, ` +
+        `lekin kaam nahi aayi — bahut lambi video ho sakti hai. Manually chhota karke try karein.)`
+    );
+  }
+
+  if (finalFiles.length === 0) {
+    uploadProgress.hidden = true;
+    return;
+  }
+  files = finalFiles;
 
   const totalFiles = files.length;
   let completedFiles = 0;
