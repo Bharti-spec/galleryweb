@@ -164,6 +164,17 @@
     </div>
   </div>
 
+  <!-- Temporary mobile debugging aid — only loads if you open the page as
+       .../gallery.html?debug=1 — shows an on-screen console so we can see
+       errors directly on the phone without needing a cable/laptop. -->
+  <script>
+    if (new URLSearchParams(window.location.search).get("debug") === "1") {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/eruda";
+      s.onload = () => window.eruda && window.eruda.init();
+      document.body.appendChild(s);
+    }
+  </script>
   <script src="js/gallery.js"></script>
 </body>
 </html>
