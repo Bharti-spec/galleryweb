@@ -927,8 +927,36 @@ retryFailedBtn.addEventListener("click", async () => {
   await uploadFiles(filesToRetry);
 });
 
+// Cloudinary's free plan enforces these limits no matter how the file is
+// uploaded (even chunked) — checking client-side first means the person
+// gets a clear, immediate message instead of watching 3 failed retry
+// attempts before finding out.
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100MB
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
+
 async function uploadFiles(files) {
   if (!files || files.length === 0) return;
+
+  const tooLarge = [];
+  const validFiles = [];
+
+  files.forEach((f) => {
+    const isVideo = f.type.startsWith("video/");
+    const limit = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (f.size > limit) tooLarge.push(f);
+    else validFiles.push(f);
+  });
+
+  if (tooLarge.length > 0) {
+    const list = tooLarge.map((f) => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)}MB)`).join("\n");
+    alert(
+      `Ye file(s) bahut badi hain, upload nahi ho payengi:\n\n${list}\n\n` +
+        `Free plan ki limit: Videos 100MB tak, Photos 10MB tak. Video ko chhota/compress karke dobara try karein.`
+    );
+  }
+
+  if (validFiles.length === 0) return;
+  files = validFiles;
 
   uploadProgress.hidden = false;
   uploadProgressFill.style.width = "0%";
