@@ -797,7 +797,23 @@ shareModal.addEventListener("click", (e) => {
 
 // ---------- lightbox ----------
 
+// Just removing a <video> element from the page does NOT reliably cancel
+// its in-flight network request in most browsers — it can keep buffering
+// silently in the background. Explicitly pausing, clearing the source, and
+// calling load() forces the browser to actually abort it. Without this,
+// opening/closing several videos in a row was piling up requests until the
+// browser started blocking new ones.
+function stopAnyLightboxVideo() {
+  const video = lightboxContent.querySelector("video");
+  if (video) {
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+  }
+}
+
 function openLightbox(item, context) {
+  stopAnyLightboxVideo();
   currentItem = item;
   currentItem._context = context;
   lightboxContent.innerHTML = "";
@@ -826,6 +842,7 @@ function openLightbox(item, context) {
 }
 
 function closeLightbox() {
+  stopAnyLightboxVideo();
   lightbox.hidden = true;
   lightboxContent.innerHTML = "";
   currentItem = null;

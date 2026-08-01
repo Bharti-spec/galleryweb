@@ -22,7 +22,17 @@ function downloadFile(item) {
   a.remove();
 }
 
+function stopAnyLightboxVideo() {
+  const video = lightboxContent.querySelector("video");
+  if (video) {
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+  }
+}
+
 function openLightbox(item) {
+  stopAnyLightboxVideo();
   currentDownloadItem = item;
   lightboxContent.innerHTML = "";
 
@@ -42,11 +52,13 @@ function openLightbox(item) {
 }
 
 lightboxClose.addEventListener("click", () => {
+  stopAnyLightboxVideo();
   lightbox.hidden = true;
   lightboxContent.innerHTML = "";
 });
 lightbox.addEventListener("click", (e) => {
   if (e.target === lightbox) {
+    stopAnyLightboxVideo();
     lightbox.hidden = true;
     lightboxContent.innerHTML = "";
   }
