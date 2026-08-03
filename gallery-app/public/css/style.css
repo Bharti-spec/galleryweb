@@ -589,8 +589,20 @@ a { color: inherit; }
 .lightbox-close { width: 40px; padding: 0; font-size: 22px; line-height: 1; }
 .lightbox-download { color: var(--accent); border-color: rgba(201, 162, 39, 0.4); }
 .lightbox-download:hover { background: rgba(201, 162, 39, 0.12); }
+.lightbox-rename { color: var(--accent2); border-color: rgba(122, 139, 153, 0.4); }
+.lightbox-rename:hover { background: rgba(122, 139, 153, 0.12); }
 .lightbox-delete { color: var(--danger); border-color: rgba(193, 80, 63, 0.4); }
 .lightbox-delete:hover { background: rgba(193, 80, 63, 0.12); }
+
+.lightbox-video-name {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  text-align: center;
+  margin: 0 0 12px;
+  word-break: break-word;
+  max-width: 90vw;
+}
 
 /* ---------- multi-select mode ---------- */
 
