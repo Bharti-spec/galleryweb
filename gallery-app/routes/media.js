@@ -423,6 +423,29 @@ router.patch("/:id/favorite", requireAuth, async (req, res) => {
   }
 });
 
+// PATCH /api/media/:id/rename - rename a single photo/video
+router.patch("/:id/rename", requireAuth, async (req, res) => {
+  try {
+    const name = (req.body.name || "").trim();
+    if (!name) {
+      return res.status(400).json({ error: "Naam khaali nahi ho sakta" });
+    }
+
+    const item = await Media.findOne({ _id: req.params.id, user: req.userId });
+    if (!item) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    item.originalName = name;
+    await item.save();
+
+    res.json({ originalName: item.originalName });
+  } catch (err) {
+    logError(err);
+    res.status(500).json({ error: "Naam change nahi ho paya" });
+  }
+});
+
 // POST /api/media/:id/share - generate (or return existing) a public share link
 router.post("/:id/share", requireAuth, async (req, res) => {
   try {
