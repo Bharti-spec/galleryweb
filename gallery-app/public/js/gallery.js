@@ -48,6 +48,8 @@ const lightboxAlbum = document.getElementById("lightboxAlbum");
 const lightboxRestore = document.getElementById("lightboxRestore");
 const lightboxFavorite = document.getElementById("lightboxFavorite");
 const lightboxShare = document.getElementById("lightboxShare");
+const lightboxRename = document.getElementById("lightboxRename");
+const lightboxVideoName = document.getElementById("lightboxVideoName");
 
 const selectModeBtn = document.getElementById("selectModeBtn");
 const selectionBar = document.getElementById("selectionBar");
@@ -831,12 +833,22 @@ function openLightbox(item, context) {
   }
 
   const isTrash = context === "trash";
+  const isVideo = item.type === "video";
+
   lightboxAlbum.hidden = isTrash;
   lightboxFavorite.hidden = isTrash;
   lightboxShare.hidden = isTrash;
+  lightboxRename.hidden = isTrash || !isVideo;
   lightboxRestore.hidden = !isTrash;
   lightboxDelete.textContent = isTrash ? "Delete forever" : "Delete";
   lightboxFavorite.classList.toggle("active", !!item.favorite);
+
+  if (isVideo) {
+    lightboxVideoName.textContent = item.originalName || "";
+    lightboxVideoName.hidden = false;
+  } else {
+    lightboxVideoName.hidden = true;
+  }
 
   lightbox.hidden = false;
 }
@@ -885,6 +897,32 @@ lightboxShare.addEventListener("click", async () => {
   const data = await res.json();
   shareContext = { kind: "media", id: currentItem._id };
   openShareModal(`${window.location.origin}/share.html?type=media&token=${data.shareToken}`);
+});
+
+lightboxRename.addEventListener("click", async () => {
+  if (!currentItem) return;
+
+  const newName = prompt("Video ka naya naam:", currentItem.originalName || "");
+  if (!newName || !newName.trim() || newName.trim() === currentItem.originalName) return;
+
+  const trimmed = newName.trim();
+
+  try {
+    await authJson(`/api/media/${currentItem._id}/rename`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: trimmed }),
+    });
+
+    currentItem.originalName = trimmed;
+    lightboxVideoName.textContent = trimmed;
+
+    // keep the in-memory list in sync so it stays correct if the lightbox
+    // is closed and reopened without a full reload
+    const inList = allMedia.find((m) => m._id === currentItem._id);
+    if (inList) inList.originalName = trimmed;
+  } catch (err) {
+    alert("Naam change nahi ho paya, dobara try karein.");
+  }
 });
 
 lightboxAlbum.addEventListener("click", () => {
