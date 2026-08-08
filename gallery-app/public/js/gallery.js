@@ -312,6 +312,13 @@ function buildCell(item, context) {
     badge.className = "video-badge";
     badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
     cell.appendChild(badge);
+
+    if (item.originalName) {
+      const nameLabel = document.createElement("div");
+      nameLabel.className = "video-name-label";
+      nameLabel.textContent = item.originalName;
+      cell.appendChild(nameLabel);
+    }
   } else {
     const img = document.createElement("img");
     img.src = item.url;
@@ -916,10 +923,11 @@ lightboxRename.addEventListener("click", async () => {
     currentItem.originalName = trimmed;
     lightboxVideoName.textContent = trimmed;
 
-    // keep the in-memory list in sync so it stays correct if the lightbox
-    // is closed and reopened without a full reload
+    // keep the in-memory list in sync, and refresh the grid behind the
+    // lightbox so the new name is visible right away
     const inList = allMedia.find((m) => m._id === currentItem._id);
     if (inList) inList.originalName = trimmed;
+    renderCurrentView();
   } catch (err) {
     alert("Naam change nahi ho paya, dobara try karein.");
   }
