@@ -2,6 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<script>
+  (function () {
+    var saved = localStorage.getItem("gallery_theme");
+    if (saved === "light") document.documentElement.setAttribute("data-theme", "light");
+  })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Shared from My Gallery</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,6 +22,7 @@
 
   <header class="topbar share-topbar">
     <span class="frame-tag">MY GALLERY &middot; SHARED</span>
+    <button id="themeToggleBtn" class="btn-ghost theme-toggle-btn theme-toggle-corner" aria-label="Toggle light/dark theme">&#127769;</button>
   </header>
 
   <main id="shareMain" class="share-main">
@@ -30,6 +37,7 @@
     <div id="lightboxContent" class="lightbox-content"></div>
   </div>
 
+  <script src="js/theme.js"></script>
   <script src="js/share.js"></script>
 </body>
 </html>

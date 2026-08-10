@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<script>
+  // Applied before anything renders, so there's no flash of the wrong theme.
+  (function () {
+    var saved = localStorage.getItem("gallery_theme");
+    if (saved === "light") document.documentElement.setAttribute("data-theme", "light");
+  })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>My Gallery</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,6 +38,7 @@
     <div class="topbar-user">
       <span id="storageMeter" class="storage-meter"></span>
       <span id="userName" class="user-name"></span>
+      <button id="themeToggleBtn" class="btn-ghost theme-toggle-btn" aria-label="Toggle light/dark theme">&#127769;</button>
       <button id="exportBtn" class="btn-ghost">Backup</button>
       <button id="selectModeBtn" class="btn-ghost">Select</button>
       <button id="logoutBtn" class="btn-ghost">Logout</button>
@@ -177,6 +185,7 @@
       document.body.appendChild(s);
     }
   </script>
+  <script src="js/theme.js"></script>
   <script src="js/gallery.js"></script>
 </body>
 </html>
