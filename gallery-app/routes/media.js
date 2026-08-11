@@ -220,12 +220,15 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
     // upload method — checking here first avoids a wasted API round-trip
     // for a file we already know will be rejected.
     const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
-    const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+    const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // also applies to PDFs — Cloudinary
+    // uploads PDFs as an "image" resource on the free plan, sharing the same limit.
 
     const outcomes = await Promise.allSettled(
       req.files.map(async (file) => {
         cleanupTasks.push(file.path);
         const isVideo = file.mimetype.startsWith("video/");
+        const isPdf = file.mimetype === "application/pdf";
+        const mediaType = isVideo ? "video" : isPdf ? "pdf" : "image";
         const limit = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
 
         if (file.size > limit) {
@@ -235,13 +238,14 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
 
         const options = {
           folder: "my-gallery",
+          // Cloudinary treats PDFs as an "image" resource — that's what
+          // unlocks page-thumbnail generation for them, same trick we use
+          // for video thumbnails.
           resource_type: isVideo ? "video" : "image",
           timeout: 300000,
         };
 
-        console.log(
-          `Uploading "${file.originalname}" (${isVideo ? "video" : "image"}, ${(file.size / (1024 * 1024)).toFixed(1)}MB)…`
-        );
+        console.log(`Uploading "${file.originalname}" (${mediaType}, ${(file.size / (1024 * 1024)).toFixed(1)}MB)…`);
 
         let result;
         try {
@@ -271,7 +275,7 @@ router.post("/upload", requireAuth, upload.array("files", 20), async (req, res) 
           album: albumId,
           url: result.secure_url,
           publicId: result.public_id,
-          type: isVideo ? "video" : "image",
+          type: mediaType,
           originalName: file.originalname,
           bytes: result.bytes,
         });
