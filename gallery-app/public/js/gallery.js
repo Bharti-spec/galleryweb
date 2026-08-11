@@ -21,6 +21,8 @@ const backToAlbums = document.getElementById("backToAlbums");
 const shareAlbumBtn = document.getElementById("shareAlbumBtn");
 
 const emptyState = document.getElementById("emptyState");
+const emptyStateTitle = document.getElementById("emptyStateTitle");
+const emptyStateText = document.getElementById("emptyStateText");
 const galleryGroups = document.getElementById("galleryGroups");
 
 const albumsEmptyState = document.getElementById("albumsEmptyState");
@@ -203,17 +205,19 @@ function switchTab(tab) {
   currentAlbumId = null;
   tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
 
-  galleryView.hidden = !(tab === "gallery" || tab === "favorites");
+  galleryView.hidden = !(tab === "gallery" || tab === "favorites" || tab === "files");
   albumsView.hidden = tab !== "albums";
   trashView.hidden = tab !== "trash";
   albumHeader.hidden = true;
 
-  uploadFab.hidden = tab !== "gallery";
+  uploadFab.hidden = !(tab === "gallery" || tab === "files");
 
   if (tab === "gallery") {
     loadGallery();
   } else if (tab === "favorites") {
     loadFavorites();
+  } else if (tab === "files") {
+    loadFiles();
   } else if (tab === "albums") {
     loadAlbums();
   } else if (tab === "trash") {
@@ -239,6 +243,13 @@ async function loadFavorites() {
   await loadMoreGalleryItems();
 }
 
+async function loadFiles() {
+  currentPage = 1;
+  hasMoreMedia = true;
+  allMedia = [];
+  await loadMoreGalleryItems();
+}
+
 async function loadMoreGalleryItems() {
   if (!hasMoreMedia || isLoadingMore) return;
   isLoadingMore = true;
@@ -247,6 +258,7 @@ async function loadMoreGalleryItems() {
   const params = new URLSearchParams();
   if (currentAlbumId) params.set("albumId", currentAlbumId);
   if (currentTab === "favorites") params.set("favorite", "true");
+  if (currentTab === "files") params.set("type", "pdf");
   params.set("page", currentPage);
   params.set("limit", PAGE_SIZE);
 
@@ -264,6 +276,18 @@ async function loadMoreGalleryItems() {
 
 function renderGalleryGroups() {
   emptyState.hidden = allMedia.length > 0;
+
+  if (currentTab === "files") {
+    emptyStateTitle.textContent = "Abhi tak koi file upload nahi hui";
+    emptyStateText.textContent = "Apni pehli PDF daalein — yahi se shuru hota hai aapka Files section.";
+  } else if (currentTab === "favorites") {
+    emptyStateTitle.textContent = "Koi favorite nahi hai abhi";
+    emptyStateText.textContent = "Kisi bhi photo/video/PDF par ★ dabakar use favorites mein daalein.";
+  } else {
+    emptyStateTitle.textContent = "Abhi tak kuch upload nahi hua";
+    emptyStateText.textContent = "Apni pehli photo ya video daalein — yahi se shuru hota hai aapka gallery.";
+  }
+
   galleryGroups.innerHTML = "";
 
   const groups = groupByDate(allMedia, "createdAt");
@@ -403,8 +427,14 @@ async function toggleFavoriteQuick(item, starEl, context) {
 }
 
 function renderCurrentView() {
-  if (currentTab === "gallery" || currentTab === "favorites") renderGalleryGroups();
+  if (currentTab === "gallery" || currentTab === "favorites" || currentTab === "files") renderGalleryGroups();
   else if (currentTab === "trash") renderTrashGroups();
+}
+
+function reloadCurrentGalleryView() {
+  if (currentTab === "favorites") loadFavorites();
+  else if (currentTab === "files") loadFiles();
+  else loadGallery();
 }
 
 // ---------- albums ----------
@@ -682,8 +712,7 @@ bulkFavoriteBtn.addEventListener("click", async () => {
   });
 
   exitSelectMode();
-  if (currentTab === "favorites") loadFavorites();
-  else loadGallery();
+  reloadCurrentGalleryView();
 });
 
 // ---------- trash / delete actions ----------
@@ -698,8 +727,7 @@ bulkTrashBtn.addEventListener("click", async () => {
   });
 
   exitSelectMode();
-  if (currentTab === "favorites") loadFavorites();
-  else loadGallery();
+  reloadCurrentGalleryView();
 });
 
 bulkRestoreBtn.addEventListener("click", async () => {
@@ -766,6 +794,7 @@ async function assignToAlbum(albumId) {
 
   if (currentTab === "gallery") loadGallery();
   else if (currentTab === "favorites") loadFavorites();
+  else if (currentTab === "files") loadFiles();
 }
 
 albumModalClose.addEventListener("click", () => (albumModal.hidden = true));
@@ -1011,6 +1040,7 @@ lightboxDelete.addEventListener("click", async () => {
     closeLightbox();
     if (isTrash) loadTrash();
     else if (currentTab === "favorites") loadFavorites();
+    else if (currentTab === "files") loadFiles();
     else loadGallery();
   } else {
     alert("Delete nahi ho paya, dobara try karein.");
@@ -1200,7 +1230,7 @@ async function uploadFiles(files) {
     retryFailedBtn.hidden = false;
   }
 
-  await loadGallery();
+  await reloadCurrentGalleryView();
   loadStorageMeter();
 
   if (failed.length === 0) {
@@ -1224,7 +1254,7 @@ window.addEventListener("scroll", () => {
   const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 600;
   if (!nearBottom) return;
 
-  if ((currentTab === "gallery" || currentTab === "favorites") && hasMoreMedia && !isLoadingMore) {
+  if ((currentTab === "gallery" || currentTab === "favorites" || currentTab === "files") && hasMoreMedia && !isLoadingMore) {
     loadMoreGalleryItems();
   } else if (currentTab === "trash" && hasMoreTrash && !isLoadingMoreTrash) {
     loadMoreTrashItems();

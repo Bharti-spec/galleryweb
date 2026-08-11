@@ -800,6 +800,9 @@ a { color: inherit; }
   .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px; }
   .topbar { padding: 14px 18px; flex-wrap: wrap; gap: 10px; }
   .topbar-brand { gap: 14px; }
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { flex-shrink: 0; }
   .login-card { padding: 32px 22px 26px; }
 
   .lightbox { padding: 16px; }

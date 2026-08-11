@@ -68,6 +68,9 @@ router.get("/", requireAuth, async (req, res) => {
     if (req.query.favorite === "true") {
       filter.favorite = true;
     }
+    if (req.query.type) {
+      filter.type = req.query.type;
+    }
 
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 60, 1), 200);
