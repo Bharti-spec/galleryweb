@@ -518,6 +518,50 @@ a { color: inherit; }
   z-index: 2;
 }
 
+.pdf-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: rgba(20, 17, 15, 0.8);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.grid-item.pdf-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-raised);
+}
+.grid-item.pdf-fallback::before {
+  content: "\1F4C4";
+  font-size: 40px;
+  opacity: 0.5;
+}
+
+.lightbox-pdf.pdf-fallback {
+  width: 240px;
+  height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-raised);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.lightbox-pdf.pdf-fallback::before {
+  content: "\1F4C4";
+  font-size: 56px;
+  opacity: 0.5;
+}
+
 .video-name-label {
   position: absolute;
   bottom: 0;
@@ -640,6 +684,20 @@ a { color: inherit; }
   border-radius: 8px;
   display: block;
 }
+.lightbox-pdf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.lightbox-pdf img {
+  max-width: 90vw;
+  max-height: 70vh;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: block;
+}
+.lightbox-pdf .btn-primary { text-decoration: none; text-align: center; max-width: 220px; }
 .lightbox-btn {
   background: rgba(255,255,255,0.06);
   border: 1px solid var(--border);
