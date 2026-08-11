@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+  (function () {
+    var saved = localStorage.getItem("gallery_theme");
+    if (saved === "light") document.documentElement.setAttribute("data-theme", "light");
+  })();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shared from My Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#14110f" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="share-body">
+
+  <header class="topbar share-topbar">
+    <span class="frame-tag">MY GALLERY &middot; SHARED</span>
+    <button id="themeToggleBtn" class="btn-ghost theme-toggle-btn theme-toggle-corner" aria-label="Toggle light/dark theme">&#127769;</button>
+  </header>
+
+  <main id="shareMain" class="share-main">
+    <p class="share-loading">Loading…</p>
+  </main>
+
+  <div id="lightbox" class="lightbox" hidden>
+    <div class="lightbox-actions">
+      <button id="lightboxDownload" class="lightbox-btn lightbox-download">Download</button>
+      <button id="lightboxClose" class="lightbox-btn lightbox-close" aria-label="Close">&times;</button>
+    </div>
+    <div id="lightboxContent" class="lightbox-content"></div>
+  </div>
+
+  <script src="js/theme.js"></script>
+  <script src="js/share.js"></script>
+</body>
+</html>
