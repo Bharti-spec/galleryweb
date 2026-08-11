@@ -100,6 +100,25 @@ Phir browser mein `http://localhost:5000` kholein.
 
 ---
 
+## File size limits
+
+Cloudinary ke **free plan** ki khud ki hard limits hain:
+- **Videos: 100MB tak**
+- **Photos & PDFs: 10MB tak**
+
+**Auto-compress:** Agar koi video 100MB se badi hai, app **khud hi usse browser mein compress karke chhota kar degi** (quality/resolution thodi kam karke), taaki wo upload ho sake — bina aapko kuch manually karna pade. Ye process phone/computer ki apni processing power use karta hai, isliye size aur device ke hisaab se ismein **kuch minute lag sakte hain**. Agar bahut hi lambi video ho (jaise 20-30+ minute), to compression ke baad bhi 100MB se badi reh sakti hai — us case mein manually chhota karna padega.
+
+Photos aur PDFs ke liye auto-compress nahi hai (10MB se badi file directly reject ho jaati hai) — modern phone photos aur normal PDFs aam taur par isse bahut kam hoti hain, isliye ye shayad hi kabhi problem banega.
+
+## PDF support
+
+Photos/videos ki tarah PDFs bhi upload, download, share, aur backup/export sab kuch kar sakte hain:
+- Upload karte waqt file picker mein PDF bhi select ho sakti hai
+- Gallery grid mein PDF ka **pehla page thumbnail** ki tarah dikhta hai, saath mein "PDF" badge
+- Click karke khol ne par thumbnail ke saath ek **"Open PDF"** button milta hai — poora document naye tab mein khulta hai
+- Download, Share link, Favorite, Album mein daalna, Trash, Backup — sab features PDF ke liye bhi photos/videos jaisa hi kaam karte hain
+- Sirf **naam badalne (rename)** ka option abhi sirf videos ke liye hai, PDFs ke liye nahi
+
 ## Security note
 
 Login sirf naam + phone se hota hai, koi OTP ya password verification nahi hai (jaisa aapne bola tha, simple rakha hai). Iska matlab: agar koi aapka phone number jaan jaaye, wo us number se login karke aapki photos dekh sakta hai. Personal/family use ke liye theek hai, lekin agar future mein zyada security chahiye ho to OTP verification add karwaya ja sakta hai — bata dijiyega.
