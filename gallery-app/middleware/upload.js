@@ -21,10 +21,10 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     const allowed = /^(image|video)\//;
-    if (allowed.test(file.mimetype)) {
+    if (allowed.test(file.mimetype) || file.mimetype === "application/pdf") {
       cb(null, true);
     } else {
-      cb(new Error("Only image and video files are allowed"));
+      cb(new Error("Only image, video, and PDF files are allowed"));
     }
   },
 });
