@@ -42,6 +42,27 @@ function openLightbox(item) {
     video.controls = true;
     video.autoplay = true;
     lightboxContent.appendChild(video);
+  } else if (item.type === "pdf") {
+    const wrap = document.createElement("div");
+    wrap.className = "lightbox-pdf";
+
+    const img = document.createElement("img");
+    img.src = item.url.replace(/\.\w+(\?.*)?$/, ".jpg$1");
+    img.addEventListener("error", () => {
+      img.remove();
+      wrap.classList.add("pdf-fallback");
+    });
+    wrap.appendChild(img);
+
+    const openBtn = document.createElement("a");
+    openBtn.href = item.url;
+    openBtn.target = "_blank";
+    openBtn.rel = "noopener";
+    openBtn.className = "btn-primary btn-inline";
+    openBtn.textContent = "Open PDF";
+    wrap.appendChild(openBtn);
+
+    lightboxContent.appendChild(wrap);
   } else {
     const img = document.createElement("img");
     img.src = item.url;
@@ -77,11 +98,28 @@ function renderSingleMedia(item) {
     el = document.createElement("video");
     el.src = item.url;
     el.controls = true;
+  } else if (item.type === "pdf") {
+    el = document.createElement("img");
+    el.src = item.url.replace(/\.\w+(\?.*)?$/, ".jpg$1");
+    el.addEventListener("error", () => {
+      el.remove();
+      wrap.classList.add("pdf-fallback");
+    });
   } else {
     el = document.createElement("img");
     el.src = item.url;
   }
   wrap.appendChild(el);
+
+  if (item.type === "pdf") {
+    const openBtn = document.createElement("a");
+    openBtn.href = item.url;
+    openBtn.target = "_blank";
+    openBtn.rel = "noopener";
+    openBtn.className = "btn-primary btn-inline share-download-btn";
+    openBtn.textContent = "Open PDF";
+    wrap.appendChild(openBtn);
+  }
 
   const downloadBtn = document.createElement("button");
   downloadBtn.className = "btn-primary btn-inline share-download-btn";
@@ -124,6 +162,20 @@ function renderAlbum(albumName, mediaList) {
       const badge = document.createElement("div");
       badge.className = "video-badge";
       badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+      cell.appendChild(badge);
+    } else if (item.type === "pdf") {
+      const img = document.createElement("img");
+      img.src = item.url.replace(/\.\w+(\?.*)?$/, ".jpg$1");
+      img.loading = "lazy";
+      img.addEventListener("error", () => {
+        img.remove();
+        cell.classList.add("pdf-fallback");
+      });
+      cell.appendChild(img);
+
+      const badge = document.createElement("div");
+      badge.className = "pdf-badge";
+      badge.textContent = "PDF";
       cell.appendChild(badge);
     } else {
       const img = document.createElement("img");

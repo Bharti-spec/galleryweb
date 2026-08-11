@@ -287,11 +287,11 @@ function renderGalleryGroups() {
 }
 
 function getVideoThumbnailUrl(url) {
-  // Cloudinary can generate a still-frame JPG straight from a video asset —
-  // just swap the file extension. This is far lighter than loading the full
-  // video, and avoids the browser hitting its per-page connection limit when
-  // many videos try to load in the grid at once (which was silently
-  // "blocking" some videos from ever rendering).
+  // Cloudinary can generate a still-frame JPG straight from a video asset (or
+  // a first-page JPG from a PDF) — just swap the file extension. This is far
+  // lighter than loading the full file, and avoids the browser hitting its
+  // per-page connection limit when many items try to load in the grid at
+  // once (which was silently "blocking" some videos from ever rendering).
   return url.replace(/\.\w+(\?.*)?$/, ".jpg$1");
 }
 
@@ -311,6 +311,29 @@ function buildCell(item, context) {
     const badge = document.createElement("div");
     badge.className = "video-badge";
     badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+    cell.appendChild(badge);
+
+    if (item.originalName) {
+      const nameLabel = document.createElement("div");
+      nameLabel.className = "video-name-label";
+      nameLabel.textContent = item.originalName;
+      cell.appendChild(nameLabel);
+    }
+  } else if (item.type === "pdf") {
+    const img = document.createElement("img");
+    img.src = getVideoThumbnailUrl(item.url); // same extension-swap trick works for PDFs
+    img.loading = "lazy";
+    // Some PDFs (password-protected ones especially) can't be turned into a
+    // page thumbnail — fall back to a generic icon instead of a broken image.
+    img.addEventListener("error", () => {
+      img.remove();
+      cell.classList.add("pdf-fallback");
+    });
+    cell.appendChild(img);
+
+    const badge = document.createElement("div");
+    badge.className = "pdf-badge";
+    badge.textContent = "PDF";
     cell.appendChild(badge);
 
     if (item.originalName) {
@@ -402,7 +425,10 @@ async function loadAlbums() {
     cover.className = "album-cover";
     if (album.coverUrl) {
       const img = document.createElement("img");
-      img.src = album.coverType === "video" ? getVideoThumbnailUrl(album.coverUrl) : album.coverUrl;
+      img.src =
+        album.coverType === "video" || album.coverType === "pdf"
+          ? getVideoThumbnailUrl(album.coverUrl)
+          : album.coverUrl;
       cover.appendChild(img);
     } else {
       const placeholder = document.createElement("span");
@@ -833,6 +859,27 @@ function openLightbox(item, context) {
     video.controls = true;
     video.autoplay = true;
     lightboxContent.appendChild(video);
+  } else if (item.type === "pdf") {
+    const wrap = document.createElement("div");
+    wrap.className = "lightbox-pdf";
+
+    const img = document.createElement("img");
+    img.src = getVideoThumbnailUrl(item.url); // first-page preview
+    img.addEventListener("error", () => {
+      img.remove();
+      wrap.classList.add("pdf-fallback");
+    });
+    wrap.appendChild(img);
+
+    const openBtn = document.createElement("a");
+    openBtn.href = item.url;
+    openBtn.target = "_blank";
+    openBtn.rel = "noopener";
+    openBtn.className = "btn-primary btn-inline";
+    openBtn.textContent = "Open PDF";
+    wrap.appendChild(openBtn);
+
+    lightboxContent.appendChild(wrap);
   } else {
     const img = document.createElement("img");
     img.src = item.url;
@@ -841,6 +888,7 @@ function openLightbox(item, context) {
 
   const isTrash = context === "trash";
   const isVideo = item.type === "video";
+  const isPdf = item.type === "pdf";
 
   lightboxAlbum.hidden = isTrash;
   lightboxFavorite.hidden = isTrash;
@@ -850,7 +898,7 @@ function openLightbox(item, context) {
   lightboxDelete.textContent = isTrash ? "Delete forever" : "Delete";
   lightboxFavorite.classList.toggle("active", !!item.favorite);
 
-  if (isVideo) {
+  if (isVideo || isPdf) {
     lightboxVideoName.textContent = item.originalName || "";
     lightboxVideoName.hidden = false;
   } else {
@@ -1045,7 +1093,7 @@ async function uploadFiles(files) {
     const list = stillTooLarge.map((f) => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)}MB)`).join("\n");
     alert(
       `Ye file(s) upload nahi ho payengi:\n\n${list}\n\n` +
-        `Free plan ki limit: Videos 100MB tak, Photos 10MB tak. (Video compress karne ki koshish ki gayi thi, ` +
+        `Free plan ki limit: Videos 100MB tak, Photos/PDFs 10MB tak. (Video compress karne ki koshish ki gayi thi, ` +
         `lekin kaam nahi aayi — bahut lambi video ho sakti hai. Manually chhota karke try karein.)`
     );
   }
