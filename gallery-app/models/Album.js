@@ -12,6 +12,15 @@ const albumSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  // "media" = regular photo/video albums, "files" = PDF folders. Keeps the
+  // two organization systems completely separate so photos/videos and PDFs
+  // never end up mixed in the same album.
+  kind: {
+    type: String,
+    enum: ["media", "files"],
+    default: "media",
+    index: true,
+  },
   shareToken: {
     type: String,
     unique: true,
