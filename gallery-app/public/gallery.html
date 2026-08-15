@@ -57,6 +57,10 @@
         <button id="exportAlbumBtn" class="btn-ghost">Export album</button>
       </div>
 
+      <div id="filesToolbar" class="albums-toolbar" hidden>
+        <button id="foldersNavBtn" class="btn-ghost">Folders</button>
+      </div>
+
       <div id="emptyState" class="empty-state" hidden>
         <div class="empty-frame" aria-hidden="true"></div>
         <h2 id="emptyStateTitle">Abhi tak kuch upload nahi hua</h2>
@@ -66,16 +70,17 @@
       <div id="galleryGroups"></div>
     </section>
 
-    <!-- ===== ALBUMS VIEW ===== -->
+    <!-- ===== ALBUMS VIEW (also reused for PDF folders) ===== -->
     <section id="albumsView" class="view" hidden>
       <div class="albums-toolbar">
+        <button id="backToFiles" class="btn-ghost" hidden>&larr; Files</button>
         <button id="newAlbumBtn" class="btn-primary btn-inline">+ New Album</button>
       </div>
 
       <div id="albumsEmptyState" class="empty-state" hidden>
         <div class="empty-frame" aria-hidden="true"></div>
-        <h2>Koi album nahi bana</h2>
-        <p>Photos ko organize karne ke liye ek album bana lein — jaise "Family" ya "Trip".</p>
+        <h2 id="albumsEmptyTitle">Koi album nahi bana</h2>
+        <p id="albumsEmptyText">Photos ko organize karne ke liye ek album bana lein — jaise "Family" ya "Trip".</p>
       </div>
 
       <div id="albumsGrid" class="albums-grid"></div>
