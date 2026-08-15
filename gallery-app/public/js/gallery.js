@@ -20,12 +20,18 @@ const albumHeaderName = document.getElementById("albumHeaderName");
 const backToAlbums = document.getElementById("backToAlbums");
 const shareAlbumBtn = document.getElementById("shareAlbumBtn");
 
+const filesToolbar = document.getElementById("filesToolbar");
+const foldersNavBtn = document.getElementById("foldersNavBtn");
+const backToFiles = document.getElementById("backToFiles");
+
 const emptyState = document.getElementById("emptyState");
 const emptyStateTitle = document.getElementById("emptyStateTitle");
 const emptyStateText = document.getElementById("emptyStateText");
 const galleryGroups = document.getElementById("galleryGroups");
 
 const albumsEmptyState = document.getElementById("albumsEmptyState");
+const albumsEmptyTitle = document.getElementById("albumsEmptyTitle");
+const albumsEmptyText = document.getElementById("albumsEmptyText");
 const albumsGrid = document.getElementById("albumsGrid");
 const newAlbumBtn = document.getElementById("newAlbumBtn");
 
@@ -84,13 +90,15 @@ const shareModalClose = document.getElementById("shareModalClose");
 
 // ---------- state ----------
 
-let currentTab = "gallery"; // 'gallery' | 'favorites' | 'albums' | 'trash'
+let currentTab = "gallery"; // 'gallery' | 'favorites' | 'files' | 'albums' | 'trash'
 let currentAlbumId = null;
+let currentAlbumKind = "media"; // "media" (photo/video albums) | "files" (PDF folders)
 let allMedia = [];
 let selectMode = false;
 let selectedIds = new Set();
 let currentItem = null;
 let assignTargetIds = null; // ids being assigned to an album via the modal
+let assignTargetKind = "media"; // kind of album being created/assigned ("media" | "files")
 let shareContext = null; // { kind: 'media'|'album', id }
 
 const PAGE_SIZE = 60;
@@ -198,19 +206,31 @@ tabButtons.forEach((btn) => {
   btn.addEventListener("click", () => switchTab(btn.dataset.tab));
 });
 
+// Keeping the accept attribute narrow and context-specific is what makes the
+// phone's native Photos picker show up for photo/video uploads — mixing in
+// application/pdf caused Android/iOS to fall back to a generic (and much
+// clunkier) file browser even when uploading regular photos.
+function updateFileInputAccept() {
+  fileInput.accept = currentAlbumKind === "files" ? "application/pdf" : "image/*,video/*";
+}
+
 function switchTab(tab) {
   if (selectMode) exitSelectMode();
 
   currentTab = tab;
   currentAlbumId = null;
+  currentAlbumKind = tab === "files" ? "files" : "media";
   tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
 
   galleryView.hidden = !(tab === "gallery" || tab === "favorites" || tab === "files");
   albumsView.hidden = tab !== "albums";
   trashView.hidden = tab !== "trash";
   albumHeader.hidden = true;
+  filesToolbar.hidden = tab !== "files";
+  backToFiles.hidden = true;
 
   uploadFab.hidden = !(tab === "gallery" || tab === "files");
+  updateFileInputAccept();
 
   if (tab === "gallery") {
     loadGallery();
@@ -219,13 +239,11 @@ function switchTab(tab) {
   } else if (tab === "files") {
     loadFiles();
   } else if (tab === "albums") {
-    loadAlbums();
+    loadAlbums("media");
   } else if (tab === "trash") {
     loadTrash();
   }
 }
-
-backToAlbums.addEventListener("click", () => switchTab("albums"));
 
 // ---------- gallery (main + album detail) ----------
 
@@ -439,12 +457,22 @@ function reloadCurrentGalleryView() {
 
 // ---------- albums ----------
 
-async function loadAlbums() {
-  const res = await authFetch("/api/albums");
+async function loadAlbums(kind) {
+  currentAlbumKind = kind || currentAlbumKind;
+  const isFiles = currentAlbumKind === "files";
+
+  const res = await authFetch(`/api/albums?kind=${currentAlbumKind}`);
   const data = await res.json();
   const albums = data.albums || [];
 
   albumsEmptyState.hidden = albums.length > 0;
+  albumsEmptyTitle.textContent = isFiles ? "Koi folder nahi bana" : "Koi album nahi bana";
+  albumsEmptyText.textContent = isFiles
+    ? "PDFs ko organize karne ke liye ek folder bana lein."
+    : 'Photos ko organize karne ke liye ek album bana lein — jaise "Family" ya "Trip".';
+  newAlbumBtn.textContent = isFiles ? "+ New Folder" : "+ New Album";
+  backToFiles.hidden = !isFiles;
+
   albumsGrid.innerHTML = "";
 
   albums.forEach((album) => {
@@ -481,26 +509,28 @@ async function loadAlbums() {
     renameItem.addEventListener("click", async (e) => {
       e.stopPropagation();
       optionsMenu.hidden = true;
-      const newName = prompt("Album ka naya naam:", album.name);
+      const newName = prompt(`${isFiles ? "Folder" : "Album"} ka naya naam:`, album.name);
       if (!newName || !newName.trim() || newName.trim() === album.name) return;
 
       await authJson(`/api/albums/${album._id}`, {
         method: "PATCH",
         body: JSON.stringify({ name: newName.trim() }),
       });
-      loadAlbums();
+      loadAlbums(currentAlbumKind);
     });
 
     const deleteItem = document.createElement("button");
-    deleteItem.textContent = "Delete album";
+    deleteItem.textContent = isFiles ? "Delete folder" : "Delete album";
     deleteItem.className = "danger";
     deleteItem.addEventListener("click", async (e) => {
       e.stopPropagation();
       optionsMenu.hidden = true;
-      if (!confirm(`"${album.name}" album delete kar dein? Photos/videos gallery mein wapas aa jayengi, kuch delete nahi hoga.`)) return;
+      const itemWord = isFiles ? "Files" : "Photos/videos";
+      const thing = isFiles ? "folder" : "album";
+      if (!confirm(`"${album.name}" ${thing} delete kar dein? ${itemWord} gallery mein wapas aa jayengi, kuch delete nahi hoga.`)) return;
 
       await authFetch(`/api/albums/${album._id}`, { method: "DELETE" });
-      loadAlbums();
+      loadAlbums(currentAlbumKind);
     });
 
     optionsMenu.appendChild(renameItem);
@@ -524,7 +554,7 @@ async function loadAlbums() {
     card.appendChild(cover);
     card.appendChild(info);
 
-    card.addEventListener("click", () => openAlbum(album._id, album.name));
+    card.addEventListener("click", () => openAlbum(album._id, album.name, album.kind));
 
     albumsGrid.appendChild(card);
   });
@@ -535,22 +565,74 @@ document.addEventListener("click", () => {
   document.querySelectorAll(".album-options-menu").forEach((m) => (m.hidden = true));
 });
 
-function openAlbum(albumId, albumName) {
+function openAlbum(albumId, albumName, kind) {
   currentAlbumId = albumId;
-  currentTab = "gallery";
-  tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === "gallery"));
+  currentAlbumKind = kind || "media";
+  const isFiles = currentAlbumKind === "files";
+
+  tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === (isFiles ? "files" : "albums")));
+
   galleryView.hidden = false;
   albumsView.hidden = true;
   trashView.hidden = true;
+  filesToolbar.hidden = true;
   uploadFab.hidden = false;
+  updateFileInputAccept();
 
   albumHeader.hidden = false;
   albumHeaderName.textContent = albumName;
+  backToAlbums.textContent = isFiles ? "← Folders" : "← Albums";
 
+  currentTab = isFiles ? "files" : "gallery";
   loadGallery();
 }
 
-newAlbumBtn.addEventListener("click", () => openAlbumModal(null));
+backToAlbums.addEventListener("click", () => {
+  if (currentAlbumKind === "files") {
+    showFilesFolderGrid();
+  } else {
+    switchTab("albums");
+  }
+});
+
+// ---------- Files tab: flat list <-> folder grid ----------
+
+function showFilesFolderGrid() {
+  if (selectMode) exitSelectMode();
+  currentAlbumId = null;
+  currentAlbumKind = "files";
+  currentTab = "files";
+  tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === "files"));
+
+  galleryView.hidden = true;
+  albumsView.hidden = false;
+  albumHeader.hidden = true;
+  filesToolbar.hidden = true;
+  uploadFab.hidden = true;
+
+  loadAlbums("files");
+}
+
+function showFilesFlatList() {
+  currentAlbumId = null;
+  currentAlbumKind = "files";
+  currentTab = "files";
+  tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === "files"));
+
+  albumsView.hidden = true;
+  galleryView.hidden = false;
+  albumHeader.hidden = true;
+  filesToolbar.hidden = false;
+  uploadFab.hidden = false;
+  updateFileInputAccept();
+
+  loadFiles();
+}
+
+foldersNavBtn.addEventListener("click", showFilesFolderGrid);
+backToFiles.addEventListener("click", showFilesFlatList);
+
+newAlbumBtn.addEventListener("click", () => openAlbumModal(null, currentAlbumKind));
 
 shareAlbumBtn.addEventListener("click", async () => {
   if (!currentAlbumId) return;
@@ -630,7 +712,7 @@ function exitSelectMode() {
   selectedIds.clear();
   selectModeBtn.textContent = "Select";
   selectionBar.hidden = true;
-  uploadFab.hidden = currentTab !== "gallery";
+  uploadFab.hidden = !(currentTab === "gallery" || currentTab === "files");
   document.querySelector(".gallery-main").classList.remove("has-selection-bar");
   renderCurrentView();
 }
@@ -759,17 +841,24 @@ bulkPermanentDeleteBtn.addEventListener("click", async () => {
 
 bulkAlbumBtn.addEventListener("click", () => {
   if (selectedIds.size === 0) return;
-  openAlbumModal(Array.from(selectedIds));
+  const items = allMedia.filter((m) => selectedIds.has(m._id));
+  const kind = items.length > 0 && items.every((m) => m.type === "pdf") ? "files" : "media";
+  openAlbumModal(Array.from(selectedIds), kind);
 });
 
-async function openAlbumModal(ids) {
+async function openAlbumModal(ids, kind) {
   assignTargetIds = ids;
-  albumModalTitle.textContent = ids ? "Add to album" : "New album";
+  assignTargetKind = kind || currentAlbumKind;
+  albumModalTitle.textContent = ids
+    ? assignTargetKind === "files" ? "Add to folder" : "Add to album"
+    : assignTargetKind === "files" ? "New folder" : "New album";
   albumModalList.innerHTML = "";
   newAlbumName.value = "";
+  newAlbumName.placeholder =
+    assignTargetKind === "files" ? "Folder ka naam (e.g. Bills)" : "Album ka naam (e.g. Family Trip)";
 
   if (ids) {
-    const res = await authFetch("/api/albums");
+    const res = await authFetch(`/api/albums?kind=${assignTargetKind}`);
     const data = await res.json();
     (data.albums || []).forEach((album) => {
       const row = document.createElement("div");
@@ -809,7 +898,7 @@ newAlbumForm.addEventListener("submit", async (e) => {
 
   const res = await authJson("/api/albums", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, kind: assignTargetKind || currentAlbumKind }),
   });
   const data = await res.json();
 
@@ -817,7 +906,7 @@ newAlbumForm.addEventListener("submit", async (e) => {
     await assignToAlbum(data.album._id);
   } else {
     albumModal.hidden = true;
-    loadAlbums();
+    loadAlbums(currentAlbumKind);
   }
 });
 
@@ -920,6 +1009,7 @@ function openLightbox(item, context) {
   const isPdf = item.type === "pdf";
 
   lightboxAlbum.hidden = isTrash;
+  lightboxAlbum.textContent = isPdf ? "Add to folder" : "Add to album";
   lightboxFavorite.hidden = isTrash;
   lightboxShare.hidden = isTrash;
   lightboxRename.hidden = isTrash || !isVideo;
@@ -1012,7 +1102,8 @@ lightboxRename.addEventListener("click", async () => {
 
 lightboxAlbum.addEventListener("click", () => {
   if (!currentItem) return;
-  openAlbumModal([currentItem._id]);
+  const kind = currentItem.type === "pdf" ? "files" : "media";
+  openAlbumModal([currentItem._id], kind);
 });
 
 lightboxRestore.addEventListener("click", async () => {
