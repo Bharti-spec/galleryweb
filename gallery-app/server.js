@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const connectDB = require("./config/db");
+const Album = require("./models/Album");
 
 const authRoutes = require("./routes/auth");
 const mediaRoutes = require("./routes/media");
@@ -11,7 +12,22 @@ const publicRoutes = require("./routes/public");
 
 const app = express();
 
-connectDB();
+// One-time (but safe to re-run every startup) fix-up: albums created before
+// the "Folders for PDFs" feature don't have a `kind` field in the database
+// yet, so they were being filtered out of the Albums view entirely (looked
+// like they'd vanished, even though nothing was actually deleted). This
+// backfills them as ordinary photo/video albums, which is what they always
+// were.
+async function migrateAlbumKind() {
+  try {
+    const result = await Album.updateMany({ kind: { $exists: false } }, { $set: { kind: "media" } });
+    if (result.modifiedCount > 0) {
+      console.log(`Migration: backfilled "kind" on ${result.modifiedCount} existing album(s)`);
+    }
+  } catch (err) {
+    console.error("Album kind migration failed:", err.message);
+  }
+}
 
 app.use(cors());
 app.use(express.json());
@@ -63,6 +79,11 @@ process.on("unhandledRejection", (err) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+
+connectDB()
+  .then(migrateAlbumKind)
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  });
