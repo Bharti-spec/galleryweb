@@ -273,7 +273,7 @@ a { color: inherit; }
 
 .btn-inline { width: auto; padding: 10px 20px; font-size: 14px; }
 
-.albums-toolbar { margin-bottom: 22px; }
+.albums-toolbar { margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 .albums-grid {
   display: grid;
