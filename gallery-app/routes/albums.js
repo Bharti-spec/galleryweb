@@ -11,9 +11,11 @@ function logError(err) {
 }
 
 // GET /api/albums - list user's albums with item count + a cover thumbnail
+// ?kind=media (default) for photo/video albums, ?kind=files for PDF folders
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const albums = await Album.find({ user: req.userId }).sort({ createdAt: -1 });
+    const kind = req.query.kind === "files" ? "files" : "media";
+    const albums = await Album.find({ user: req.userId, kind }).sort({ createdAt: -1 });
 
     const withCovers = await Promise.all(
       albums.map(async (album) => {
@@ -31,6 +33,7 @@ router.get("/", requireAuth, async (req, res) => {
         return {
           _id: album._id,
           name: album.name,
+          kind: album.kind,
           createdAt: album.createdAt,
           count,
           coverUrl: cover ? cover.url : null,
@@ -46,15 +49,16 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/albums - create a new album
+// POST /api/albums - create a new album (kind: "media" or "files")
 router.post("/", requireAuth, async (req, res) => {
   try {
     const name = (req.body.name || "").trim();
     if (!name) {
       return res.status(400).json({ error: "Album ka naam dalein" });
     }
+    const kind = req.body.kind === "files" ? "files" : "media";
 
-    const album = await Album.create({ user: req.userId, name });
+    const album = await Album.create({ user: req.userId, name, kind });
     res.status(201).json({ album });
   } catch (err) {
     logError(err);
